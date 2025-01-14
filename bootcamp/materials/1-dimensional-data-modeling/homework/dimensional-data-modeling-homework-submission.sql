@@ -9,7 +9,7 @@ CREATE TYPE films AS (
 	filmid INTEGER
 )
 
-CREATE TYPE quality_class AS ENUM('star','good','avg','bad');
+CREATE TYPE quality_class AS ENUM('star','good','avg','bad')
 
 CREATE TABLE actors (
 		actor TEXT,
@@ -26,13 +26,14 @@ Write a query that populates the actors table one year at a time */
 WITH yesterday AS (
 	SELECT *
 	FROM actor_films
-	WHERE year = 1969
+	WHERE year = 1970 /* 1970 for the seed query */
 ),
 	today AS (
 	SELECT *
 	FROM actor_films
-	WHERE year = 1970
+	WHERE year = 1971
 )
+
 INSERT INTO actors
 SELECT 
 	COALESCE(t.actor,y.actor) AS actor,
@@ -46,7 +47,7 @@ SELECT
 					t.rating,
 					t.filmid
 		)::films]
-	WHEN t.year IS NOT NULL
+	WHEN t.year IS NOT NULL 
 		THEN y.films || ARRAY[ROW(
 					t.film,
 					t.year,
@@ -72,7 +73,7 @@ SELECT
 
 /* DDL for actors_history_scd table: 
 Create a DDL for an actors_history_scd table */
-CREATE TABLE players_scd_table
+CREATE TABLE actors_history_scd
 (
 	actor TEXT,
 	quality_class scoring_class,
@@ -85,7 +86,12 @@ CREATE TABLE players_scd_table
 /* Backfill query for actors_history_scd: 
 Write a "backfill" query that can populate 
 the entire actors_history_scd table in a single query */
-INSERT INTO players_scd_table
+
+
+/* Backfill query for actors_history_scd: 
+Write a "backfill" query that can populate 
+the entire actors_history_scd table in a single query */
+INSERT INTO actors_history_scd
 SELECT 
     actor,
     quality_class,
