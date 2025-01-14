@@ -2,13 +2,16 @@ SELECT * FROM player_seasons;
 
 /*player_seasons need to be deduplicated*/
 /*create a struct season_stats*/
--- CREATE TYPE season_stats AS (
--- 				season INTEGER,
--- 				gp INTEGER,
--- 				pts REAL,
--- 				reb REAL,
--- 				ast REAL
--- )
+CREATE TYPE season_stats AS (
+				season INTEGER,
+				gp INTEGER,
+				pts REAL,
+				reb REAL,
+				ast REAL
+)
+
+/*create an enumerated type*/
+CREATE TYPE scoring_class AS ENUM('star','good','avg','bad');
 
 /*create a table for player level columns with array of season_stats*/
 CREATE TABLE players (
@@ -20,6 +23,8 @@ CREATE TABLE players (
 	draft_round TEXT,
 	draft_number TEXT,
 	season_stats season_stats[],
+	scoring_class scoring_class,
+	years_since_last_season INTEGER,
 	current_season INTEGER,
 	PRIMARY KEY(player_name,current_season)
 )
@@ -30,19 +35,18 @@ CREATE TABLE players (
 
 /* Create a full outer join that gives us the cumulation from today and yesterday */
 
-INSERT INTO players /*append historical data year by year*/
-
 /*original seed query creating players table*/
 WITH yesterday AS (
 	SELECT * FROM players
 	-- WHERE current_season=1995 /*create the seed query for cumulation*/
-	WHERE current_season=1996
+	WHERE current_season=1997
 ), 
 	today AS (
 	SELECT * FROM player_seasons
-	WHERE season=1997
-	)
+	WHERE season=1998
+)
 
+INSERT INTO players /*append historical data year by year*/
 SELECT 
 	COALESCE(t.player_name,y.player_name) as player_name,
 	COALESCE(t.height,y.height) as height,
@@ -70,6 +74,17 @@ SELECT
 		)::season_stats]
 	ELSE y.season_stats
 	END AS season_stats,
+	CASE WHEN t.season IS NOT NULL THEN 
+		CASE WHEN t.pts>20 THEN 'star'
+			WHEN t.pts>15 THEN 'good'
+			WHEN t.pts>10 THEN 'avg'
+			ELSE 'bad' 
+			END::scoring_class
+		ELSE y.scoring_class
+	END as scoring_class,
+	CASE WHEN t.season IS NOT NULL THEN 0
+	ELSE y.years_since_last_season+1
+	END AS years_since_last_season,
 	-- CASE 
 	-- 	WHEN t.season IS NOT NULL THEN t.season
 	-- 	ELSE y.season + 1
@@ -79,7 +94,7 @@ SELECT
 	FROM today t FULL OUTER JOIN yesterday y
 	ON t.player_name = y.player_name
 
--- SELECT * FROM players WHERE current_season=1997
+--SELECT * FROM players WHERE current_season=1997
 
 WITH unnested AS (
 	SELECT player_name,
@@ -92,3 +107,12 @@ WITH unnested AS (
 SELECT player_name, 
 	(season_stats::season_stats).*
 FROM unnested /*keeps the temporal component intact, compressed and sorted in cumulative table design*/
+
+/*fast efficient query as there is no groupby involved in this aggregated metric calc*/
+/* HISTORICAL ANALYSIS ON CUMULATIVE TABLES WITHOUT TIME TAKING SHUFFLES */
+SELECT player_name,
+	CASE WHEN (season_stats[1]::season_stats).pts=0 THEN 1
+		ELSE (season_stats[CARDINALITY(season_stats)]::season_stats).pts/(season_stats[1]::season_stats).pts 
+		END AS improvement
+	FROM players
+	WHERE current_season=2001
