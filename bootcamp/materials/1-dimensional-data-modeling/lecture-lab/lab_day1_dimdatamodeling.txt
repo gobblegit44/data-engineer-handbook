@@ -11,18 +11,20 @@ SELECT * FROM player_seasons;
 -- )
 
 /*create a table for player level columns with array of season_stats*/
--- CREATE TABLE players (
--- 	player_name TEXT,
--- 	height TEXT,
--- 	college TEXT,
--- 	country TEXT,
--- 	draft_year TEXT,
--- 	draft_round TEXT,
--- 	draft_number TEXT,
--- 	season_stats season_stats[],
--- 	current_season INTEGER,
--- 	PRIMARY KEY(player_name,current_season)
--- )
+CREATE TABLE players (
+	player_name TEXT,
+	height TEXT,
+	college TEXT,
+	country TEXT,
+	draft_year TEXT,
+	draft_round TEXT,
+	draft_number TEXT,
+	season_stats season_stats[],
+	current_season INTEGER,
+	PRIMARY KEY(player_name,current_season)
+)
+
+-- DROP TABLE players;
 
 -- SELECT MIN(season) from player_seasons; /*gives us first player season 1996*/
 
@@ -34,11 +36,11 @@ INSERT INTO players /*append historical data year by year*/
 WITH yesterday AS (
 	SELECT * FROM players
 	-- WHERE current_season=1995 /*create the seed query for cumulation*/
-	WHERE current_season=1995
+	WHERE current_season=1996
 ), 
 	today AS (
 	SELECT * FROM player_seasons
-	WHERE season=1996
+	WHERE season=1997
 	)
 
 SELECT 
@@ -77,4 +79,16 @@ SELECT
 	FROM today t FULL OUTER JOIN yesterday y
 	ON t.player_name = y.player_name
 
-SELECT * FROM players WHERE current_season=1997
+-- SELECT * FROM players WHERE current_season=1997
+
+WITH unnested AS (
+	SELECT player_name,
+	UNNEST(season_stats)::season_stats as season_stats
+	FROM players
+	-- WHERE current_season=2001
+	-- AND player_name = 'Michael Jordan'
+)
+
+SELECT player_name, 
+	(season_stats::season_stats).*
+FROM unnested /*keeps the temporal component intact, compressed and sorted in cumulative table design*/
