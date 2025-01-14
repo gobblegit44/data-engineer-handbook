@@ -1,0 +1,80 @@
+SELECT * FROM player_seasons;
+
+/*player_seasons need to be deduplicated*/
+/*create a struct season_stats*/
+-- CREATE TYPE season_stats AS (
+-- 				season INTEGER,
+-- 				gp INTEGER,
+-- 				pts REAL,
+-- 				reb REAL,
+-- 				ast REAL
+-- )
+
+/*create a table for player level columns with array of season_stats*/
+-- CREATE TABLE players (
+-- 	player_name TEXT,
+-- 	height TEXT,
+-- 	college TEXT,
+-- 	country TEXT,
+-- 	draft_year TEXT,
+-- 	draft_round TEXT,
+-- 	draft_number TEXT,
+-- 	season_stats season_stats[],
+-- 	current_season INTEGER,
+-- 	PRIMARY KEY(player_name,current_season)
+-- )
+
+-- SELECT MIN(season) from player_seasons; /*gives us first player season 1996*/
+
+/* Create a full outer join that gives us the cumulation from today and yesterday */
+
+INSERT INTO players /*append historical data year by year*/
+
+/*original seed query creating players table*/
+WITH yesterday AS (
+	SELECT * FROM players
+	-- WHERE current_season=1995 /*create the seed query for cumulation*/
+	WHERE current_season=1995
+), 
+	today AS (
+	SELECT * FROM player_seasons
+	WHERE season=1996
+	)
+
+SELECT 
+	COALESCE(t.player_name,y.player_name) as player_name,
+	COALESCE(t.height,y.height) as height,
+	COALESCE(t.college,y.college) as college,
+	COALESCE(t.country,y.country) as country,
+	COALESCE(t.draft_year,y.draft_year) as draft_year,
+	COALESCE(t.draft_round,y.draft_round) as draft_round,
+	COALESCE(t.draft_number,y.draft_number) as draft_number,
+	/*Array concatenation*/
+	CASE WHEN y.season_stats IS NULL 
+		THEN ARRAY[ROW(
+					t.season,
+					t.gp,
+					t.pts,
+					t.reb,
+					t.ast
+		)::season_stats] /* :: will cast this array row into struct type*/
+	WHEN t.season IS NOT NULL
+		THEN y.season_stats || ARRAY[ROW(
+					t.season,
+					t.gp,
+					t.pts,
+					t.reb,
+					t.ast
+		)::season_stats]
+	ELSE y.season_stats
+	END AS season_stats,
+	-- CASE 
+	-- 	WHEN t.season IS NOT NULL THEN t.season
+	-- 	ELSE y.season + 1
+	-- END AS season /*COALESCE a better way of handling this logic*/
+	COALESCE(t.season,y.current_season+1) as current_season
+
+	FROM today t FULL OUTER JOIN yesterday y
+	ON t.player_name = y.player_name
+
+SELECT * FROM players WHERE current_season=1997
