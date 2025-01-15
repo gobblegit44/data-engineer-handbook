@@ -8,6 +8,8 @@
 
 -- CREATE TYPE scoring_class AS ENUM('star','good','avg','bad')
 
+-- DROP TABLE players
+
 CREATE TABLE players (
 	player_name TEXT,
 	height TEXT,
@@ -24,18 +26,19 @@ CREATE TABLE players (
 	PRIMARY KEY(player_name,current_season)
 )
 
+
 INSERT INTO players
 WITH years AS (
 		SELECT *
 		FROM generate_series(1996,2022) AS season
 	),
-	player_seasons_reset AS (
-		SELECT *
-		FROM player_seasons /*manually reset the primary key index to negate the duplication error*/
-	),
+	-- player_seasons_reset AS (
+	-- 	SELECT *
+	-- 	FROM player_seasons /*manually reset the primary key index to negate the duplication error*/
+	-- ),
 	p AS (
 		SELECT player_name, MIN(season) AS first_season
-		FROM player_seasons_reset
+		FROM player_seasons
 		GROUP BY player_name
 	),
 	players_and_seasons AS (
@@ -53,7 +56,7 @@ WITH years AS (
 				ps.ast,
 				ps.season
 		FROM p 
-		JOIN player_seasons_reset ps
+		JOIN player_seasons ps
 		ON p.first_season <= ps.season
 	),
 	windowed AS (
@@ -66,7 +69,7 @@ WITH years AS (
 											as seasons
 
 		FROM players_and_seasons ps
-		LEFT JOIN player_seasons_reset p1
+		LEFT JOIN player_seasons p1
 		ON ps.player_name=p1.player_name AND ps.season=p1.season
 		ORDER BY 1,2
 		-- ORDER BY ps.player_name,ps.season
@@ -79,7 +82,7 @@ WITH years AS (
 				max(draft_year) as draft_year,
 				max(draft_round) as draft_round,
 				max(draft_number) as draft_number
-		FROM player_seasons_reset
+		FROM player_seasons
 		GROUP BY player_name
 	)
 	
