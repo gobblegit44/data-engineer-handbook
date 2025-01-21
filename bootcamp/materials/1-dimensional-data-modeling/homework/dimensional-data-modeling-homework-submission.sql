@@ -1,11 +1,8 @@
-SELECT * FROM actor_films
-
-/* Create a DDL for an actors table */
 CREATE TYPE films AS (
 	film TEXT,
 	year INTEGER,
 	votes INTEGER,
-	rating INTEGER,
+	rating REAL,
 	filmid INTEGER
 )
 
@@ -26,12 +23,12 @@ Write a query that populates the actors table one year at a time */
 WITH yesterday AS (
 	SELECT *
 	FROM actor_films
-	WHERE year = 1970 /* 1970 for the seed query */
+	WHERE year = 1969 
 ),
 	today AS (
 	SELECT *
 	FROM actor_films
-	WHERE year = 1971
+	WHERE year = 1970
 )
 
 INSERT INTO actors
@@ -83,10 +80,6 @@ CREATE TABLE actors_history_scd
 	current_year INTEGER
 )
 
-/* Backfill query for actors_history_scd: 
-Write a "backfill" query that can populate 
-the entire actors_history_scd table in a single query */
-
 
 /* Backfill query for actors_history_scd: 
 Write a "backfill" query that can populate 
@@ -127,5 +120,33 @@ WHERE
 /* Incremental query for actors_history_scd: 
 Write an "incremental" query that combines the previous year's SCD data 
 with new incoming data from the actors table */
+INSERT INTO actors_history_scd
+SELECT 
+    actor,
+    quality_class,
+    is_active,
+    current_year as start_date,
+    NULL as end_date,
+    current_year
+FROM actors a
+WHERE current_year = (SELECT MAX(current_year) FROM actors)
+AND EXISTS (
+    SELECT 1 
+    FROM actors_history_scd h
+    WHERE h.actor = a.actor
+    AND (h.quality_class != a.quality_class OR h.is_active != a.is_active)
+    AND h.end_date IS NULL
+);
+
+UPDATE actors_history_scd
+SET end_date = (SELECT MAX(current_year) - 1 FROM actors)
+WHERE end_date IS NULL 
+AND actor IN (
+    SELECT h.actor
+    FROM actors_history_scd h
+    JOIN actors a ON h.actor = a.actor
+    WHERE a.current_year = (SELECT MAX(current_year) FROM actors)
+    AND (h.quality_class != a.quality_class OR h.is_active != a.is_active)
+);
 
 
