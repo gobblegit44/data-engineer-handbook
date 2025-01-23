@@ -3,24 +3,24 @@
 
   # Create Spark session
   spark = SparkSession.builder \
-      .appName("Halo Analysis") \
+      .appName("Jupyter") \
       .getOrCreate()
 
   # Disable automatic broadcast join
   spark.conf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
 
   # Read data
-  medals_df = spark.read.parquet("medals")
-  maps_df = spark.read.parquet("maps")
+  medals_df = spark.read.csv("medals")
+  maps_df = spark.read.csv("maps")
 
   # Broadcast the smaller tables
   medals_broadcast = broadcast(medals_df)
   maps_broadcast = broadcast(maps_df)
 
   # Read the larger tables that we'll bucket
-  match_details_df = spark.read.parquet("match_details")
-  matches_df = spark.read.parquet("matches") 
-  medal_matches_players_df = spark.read.parquet("medal_matches_players")
+  match_details_df = spark.read.csv("match_details")
+  matches_df = spark.read.csv("matches") 
+  medal_matches_players_df = spark.read.csv("medal_matches_players")
 
   # Create bucketed tables
   match_details_df.write \
