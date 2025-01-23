@@ -1,42 +1,32 @@
   from pyspark.sql import SparkSession
-  from pyspark.sql.functions import broadcast
+  from pyspark.sql.functions import expr,col,broadcast
 
   # Create Spark session
-  spark = SparkSession.builder \
-      .appName("Jupyter") \
-      .getOrCreate()
+  spark = SparkSession.builder.appName("Jupyter").getOrCreate()
 
-  # Disable automatic broadcast join
+  ## disable automatic broadcast join
   spark.conf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
 
   # Read data
-  medals_df = spark.read.csv("medals")
-  maps_df = spark.read.csv("maps")
+  medals_df = spark.read.option("header", "true").csv("medals")
+  maps_df = spark.read.option("header", "true").csv("maps")
 
   # Broadcast the smaller tables
   medals_broadcast = broadcast(medals_df)
   maps_broadcast = broadcast(maps_df)
 
   # Read the larger tables that we'll bucket
-  match_details_df = spark.read.csv("match_details")
-  matches_df = spark.read.csv("matches") 
-  medal_matches_players_df = spark.read.csv("medal_matches_players")
+  match_details_df = spark.read.option("header", "true").csv("match_details")
+  matches_df = spark.read.option("header", "true").csv("matches") 
+  medal_matches_players_df = spark.read.option("header", "true").csv("medal_matches_players")
 
   # Create bucketed tables
-  match_details_df.write \
-      .bucketBy(16, "match_id") \
-      .mode("overwrite") \
-      .saveAsTable("match_details_bucketed")
+  match_details_df.write.bucketBy(16, "match_id").mode("overwrite").saveAsTable("match_details_bucketed")
 
-  matches_df.write \
-      .bucketBy(16, "match_id") \
-      .mode("overwrite") \
-      .saveAsTable("matches_bucketed")
+  matches_df.write.bucketBy(16, "match_id") \
+      .mode("overwrite").saveAsTable("matches_bucketed")
 
-  medal_matches_players_df.write \
-      .bucketBy(16, "match_id") \
-      .mode("overwrite") \
-      .saveAsTable("medal_matches_players_bucketed")
+  medal_matches_players_df.write.bucketBy(16, "match_id").mode("overwrite").saveAsTable("medal_matches_players_bucketed")
 
   # Read the bucketed tables
   match_details_bucketed = spark.table("match_details_bucketed")
@@ -59,8 +49,7 @@
 
   # Find most played playlist
   most_played_playlist = matches_bucketed \
-      .groupBy("playlist") \
-      .count() \
+      .groupBy("playlist").count() \
       .orderBy("count", ascending=False)
 
   print("Most played playlists:")
@@ -96,27 +85,18 @@
       .repartition(4) \
       .sortWithinPartitions("playlist") \
       .cache()
-      
-  print("\nSize after sorting by playlist:")
-  print(playlist_sorted._jdf.queryExecution().optimizedPlan().stats().sizeInBytes())
 
   # Sort by map (low cardinality) 
   map_sorted = most_played_map \
       .repartition(4) \
       .sortWithinPartitions("map_name") \
       .cache()
-      
-  print("\nSize after sorting by map:")
-  print(map_sorted._jdf.queryExecution().optimizedPlan().stats().sizeInBytes())
 
   # Sort by count (high cardinality)
   count_sorted = most_played_map \
       .repartition(4) \
       .sortWithinPartitions("count") \
       .cache()
-      
-  print("\nSize after sorting by count:")
-  print(count_sorted._jdf.queryExecution().optimizedPlan().stats().sizeInBytes())
 
   
   
