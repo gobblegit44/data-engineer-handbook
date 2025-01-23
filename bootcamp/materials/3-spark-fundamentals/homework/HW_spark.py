@@ -2,14 +2,14 @@
   from pyspark.sql.functions import expr,col,broadcast
 
   # Create Spark session
-  spark = SparkSession.builder.appName("Jupyter").getOrCreate()
+  spark = SparkSession.builder.master("local").appName("Jupyter").getOrCreate()
 
   ## disable automatic broadcast join
   spark.conf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
 
   # Read data
-  medals_df = spark.read.option("header", "true").csv("medals")
-  maps_df = spark.read.option("header", "true").csv("maps")
+  medals_df = spark.read.option("header", "true").csv('/home/iceberg/data/medals')
+  maps_df = spark.read.option("header", "true").csv('/home/iceberg/data/maps')
 
   # Broadcast the smaller tables
   medals_broadcast = broadcast(medals_df)
