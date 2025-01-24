@@ -1,3 +1,6 @@
+Link to a sample published tableau dashboard based on medals:
+https://public.tableau.com/authoring/GamerMetrics/GamerMetricsDashboard#1
+
 # Homework
 
 - Make two dashboards with Tableau public
